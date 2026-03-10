@@ -1,4 +1,30 @@
 import { useState, useEffect } from "react";
+import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/react";
+
+// ─── GLOBAL STYLE RESET ───────────────────────────────────────────────────────
+// Injected once to ensure body/html/root have no stray margins or constrained width
+
+function GlobalStyles() {
+  useEffect(() => {
+    const style = document.createElement("style");
+    style.textContent = `
+      *, *::before, *::after { box-sizing: border-box; }
+      html, body {
+        margin: 0; padding: 0;
+        width: 100%; min-height: 100vh;
+        overflow-x: hidden;
+      }
+      #root {
+        width: 100%;
+        min-height: 100vh;
+      }
+    `;
+    document.head.appendChild(style);
+    return () => document.head.removeChild(style);
+  }, []);
+  return null;
+}
 
 // ─── LOGO ─────────────────────────────────────────────────────────────────────
 
@@ -30,13 +56,13 @@ export default function App() {
     setCookieAccepted(true);
   };
 
-  if (page === "flc")               return <><FLCCalculator nav={nav} />{!cookieAccepted && <CookieBanner onAccept={acceptCookies} nav={nav} />}</>;
-  if (page === "three-phase-power") return <><ThreePhasePowerCalculator nav={nav} />{!cookieAccepted && <CookieBanner onAccept={acceptCookies} nav={nav} />}</>;
-  if (page === "ohms-law")          return <><OhmsLawCalculator nav={nav} />{!cookieAccepted && <CookieBanner onAccept={acceptCookies} nav={nav} />}</>;
-  if (page === "terms")             return <><TermsPage nav={nav} />{!cookieAccepted && <CookieBanner onAccept={acceptCookies} nav={nav} />}</>;
-  if (page === "privacy")           return <><PrivacyPage nav={nav} />{!cookieAccepted && <CookieBanner onAccept={acceptCookies} nav={nav} />}</>;
-  if (page === "about")             return <><AboutPage nav={nav} />{!cookieAccepted && <CookieBanner onAccept={acceptCookies} nav={nav} />}</>;
-  return <><Homepage nav={nav} />{!cookieAccepted && <CookieBanner onAccept={acceptCookies} nav={nav} />}</>;
+  if (page === "flc")               return <><GlobalStyles /><Analytics /><SpeedInsights /><FLCCalculator nav={nav} />{!cookieAccepted && <CookieBanner onAccept={acceptCookies} nav={nav} />}</>;
+  if (page === "three-phase-power") return <><GlobalStyles /><Analytics /><SpeedInsights /><ThreePhasePowerCalculator nav={nav} />{!cookieAccepted && <CookieBanner onAccept={acceptCookies} nav={nav} />}</>;
+  if (page === "ohms-law")          return <><GlobalStyles /><Analytics /><SpeedInsights /><OhmsLawCalculator nav={nav} />{!cookieAccepted && <CookieBanner onAccept={acceptCookies} nav={nav} />}</>;
+  if (page === "terms")             return <><GlobalStyles /><Analytics /><SpeedInsights /><TermsPage nav={nav} />{!cookieAccepted && <CookieBanner onAccept={acceptCookies} nav={nav} />}</>;
+  if (page === "privacy")           return <><GlobalStyles /><Analytics /><SpeedInsights /><PrivacyPage nav={nav} />{!cookieAccepted && <CookieBanner onAccept={acceptCookies} nav={nav} />}</>;
+  if (page === "about")             return <><GlobalStyles /><Analytics /><SpeedInsights /><AboutPage nav={nav} />{!cookieAccepted && <CookieBanner onAccept={acceptCookies} nav={nav} />}</>;
+  return <><GlobalStyles /><Analytics /><SpeedInsights /><Homepage nav={nav} />{!cookieAccepted && <CookieBanner onAccept={acceptCookies} nav={nav} />}</>;
 }
 
 // ─── SHARED COMPONENTS ────────────────────────────────────────────────────────
