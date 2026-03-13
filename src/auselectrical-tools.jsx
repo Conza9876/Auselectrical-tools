@@ -62,6 +62,7 @@ export default function App() {
   if (page === "terms")             return <><GlobalStyles /><Analytics /><SpeedInsights /><TermsPage nav={nav} />{!cookieAccepted && <CookieBanner onAccept={acceptCookies} nav={nav} />}</>;
   if (page === "privacy")           return <><GlobalStyles /><Analytics /><SpeedInsights /><PrivacyPage nav={nav} />{!cookieAccepted && <CookieBanner onAccept={acceptCookies} nav={nav} />}</>;
   if (page === "about")             return <><GlobalStyles /><Analytics /><SpeedInsights /><AboutPage nav={nav} />{!cookieAccepted && <CookieBanner onAccept={acceptCookies} nav={nav} />}</>;
+  if (page === "contact")           return <><GlobalStyles /><Analytics /><SpeedInsights /><ContactPage nav={nav} />{!cookieAccepted && <CookieBanner onAccept={acceptCookies} nav={nav} />}</>;
   return <><GlobalStyles /><Analytics /><SpeedInsights /><Homepage nav={nav} />{!cookieAccepted && <CookieBanner onAccept={acceptCookies} nav={nav} />}</>;
 }
 
@@ -86,6 +87,7 @@ function TopBar({ nav }) {
         <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
           <NavLink onClick={() => nav("home")}>Calculators</NavLink>
           <NavLink onClick={() => nav("about")}>About</NavLink>
+          <NavLink onClick={() => nav("contact")}>Contact</NavLink>
           <NavLink onClick={() => nav("terms")}>Terms of Use</NavLink>
         </div>
       </div>
@@ -231,8 +233,6 @@ function Homepage({ nav }) {
     }),
   })).filter(cat => cat.calculators.length > 0);
 
-  const totalLive  = CATEGORIES.flatMap(c => c.calculators).filter(c => c.status === "live").length;
-  const totalCalcs = CATEGORIES.flatMap(c => c.calculators).length;
 
   return (
     <div style={{ minHeight: "100vh", background: "#f5f2eb", fontFamily: "'Georgia', 'Times New Roman', serif" }}>
@@ -249,6 +249,7 @@ function Homepage({ nav }) {
           <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
             <NavLink onClick={() => nav("home")}>Calculators</NavLink>
             <NavLink onClick={() => nav("about")}>About</NavLink>
+            <NavLink onClick={() => nav("contact")}>Contact</NavLink>
             <NavLink onClick={() => nav("terms")}>Terms of Use</NavLink>
           </div>
         </div>
@@ -270,14 +271,7 @@ function Homepage({ nav }) {
           <p style={{ margin: "0 0 28px", fontSize: 15, color: "#888", lineHeight: 1.7, maxWidth: 520 }}>
             Fast, accurate calculators for electricians and electrical engineers. Designed around AS/NZS 3000, AS/NZS 3008, and related standards.
           </p>
-          <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
-            {[{ val: totalLive, label: "Live calculators" }, { val: totalCalcs, label: "Calculators planned" }, { val: "Free", label: "Always" }].map(s => (
-              <div key={s.label}>
-                <div style={{ fontSize: 22, fontWeight: 700, color: "#f5a623", fontFamily: "'Courier New', monospace" }}>{s.val}</div>
-                <div style={{ fontSize: 11, color: "#666", fontFamily: "'Courier New', monospace", letterSpacing: "0.05em" }}>{s.label}</div>
-              </div>
-            ))}
-          </div>
+
           </div>
         </div>
       </div>
@@ -839,7 +833,7 @@ function CookieBanner({ onAccept, nav }) {
       <div style={{ display: "flex", alignItems: "center", gap: 12, flex: "1 1 300px" }}>
         <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#f5a623", flexShrink: 0 }} />
         <p style={{ margin: 0, fontSize: 12, color: "#bbb", fontFamily: "'Courier New', monospace", lineHeight: 1.6 }}>
-          This site uses cookies for analytics and advertising (Google AdSense).{" "}
+          This site uses cookies for analytics purposes.{" "}
           <button onClick={() => nav("privacy")} style={{ background: "none", border: "none", cursor: "pointer", color: "#f5a623", fontSize: 12, fontFamily: "'Courier New', monospace", padding: 0, textDecoration: "underline" }}>
             Privacy Policy
           </button>
@@ -865,47 +859,51 @@ function PrivacyPage({ nav }) {
   const sections = [
     {
       title: "1. Who We Are",
-      body: "AusElectrical.tools is an Australian website providing free electrical engineering calculators for electricians and electrical engineers. This Privacy Policy explains how we collect, use, and manage information when you visit this website.",
+      body: "AusElectrical.tools is a free Australian website providing electrical engineering calculators for electricians and electrical engineers. This Privacy Policy explains what information we collect, how we use it, and your rights in relation to it.",
     },
     {
       title: "2. Information We Collect",
-      body: "We do not require you to create an account or provide personal information to use the calculators on this website. We collect non-personal information automatically through standard web analytics and advertising tools. This may include your IP address (anonymised), browser type and version, pages visited and time spent, device type, and approximate geographic location (country/city level). This information is collected in aggregate and is not used to identify you personally.",
+      body: "We do not require you to create an account or submit any personal information to use this website. We automatically collect non-personal, anonymised usage data through analytics tools, including pages visited, time on site, browser type, device type, and approximate geographic location (country or city level). This data is collected in aggregate and cannot be used to identify you personally.",
     },
     {
       title: "3. Cookies",
-      body: "This website uses cookies — small text files stored on your device. We use cookies for two purposes: analytics (to understand how visitors use the site) and advertising (to serve relevant ads via Google AdSense). You will be asked to consent to cookie use when you first visit the site. You can withdraw consent at any time by clearing your browser cookies. Most browsers allow you to control or disable cookies through browser settings. Disabling cookies may affect the functionality of some features.",
+      body: "This website uses cookies — small text files placed on your device by your browser. We use first-party cookies to remember your cookie consent preference. We also use third-party cookies through analytics and advertising services (see sections below). You may disable cookies through your browser settings. Doing so may affect the functionality of some features on this site.",
     },
     {
-      title: "4. Google AdSense and Advertising",
-      body: "This website uses Google AdSense to display advertisements. Google AdSense uses cookies and similar tracking technologies to serve ads based on your prior visits to this website and other websites. Google's use of advertising cookies enables it and its partners to serve ads based on your visit to this site and other sites on the internet. You may opt out of personalised advertising by visiting Google's Ads Settings at https://adssettings.google.com. For more information about how Google collects and uses data, please visit https://policies.google.com/privacy.",
+      title: "4. Analytics",
+      body: "We use Vercel Analytics to collect anonymised data about how visitors use this site. This helps us understand which calculators are most used and how to improve the site. Vercel Analytics does not use cookies and does not collect personally identifiable information. For more information, see vercel.com/docs/analytics.",
     },
     {
-      title: "5. Google Analytics",
-      body: "We may use Google Analytics to collect anonymous information about how visitors use the site. Google Analytics uses cookies to collect information such as how often users visit the site, what pages they visit, and what other sites they used prior to coming to this site. We use this information solely to improve the website. Google Analytics collects only the IP address assigned to you on the date you visit this site, not your name or other identifying information. We do not combine the information collected through the use of Google Analytics with personally identifiable information.",
+      title: "5. Advertising",
+      body: "This website may display advertisements served by Google AdSense. Google AdSense uses cookies and similar technologies to serve ads relevant to your interests, based on your visits to this and other websites. You may opt out of personalised advertising at any time by visiting Google's Ads Settings at adssettings.google.com. For more information on how Google uses data, visit policies.google.com/privacy.",
     },
     {
-      title: "6. Third-Party Links",
-      body: "This website may contain links to external sites. We are not responsible for the privacy practices or content of those sites. We encourage you to review the privacy policies of any external sites you visit.",
+      title: "6. Third-Party Services",
+      body: "This website uses the following third-party services, each of which has its own privacy policy: Vercel (hosting and analytics) — vercel.com/legal/privacy-policy; Google AdSense (advertising) — policies.google.com/privacy. We are not responsible for the privacy practices of these third parties.",
     },
     {
       title: "7. Australian Privacy Act",
-      body: "This website operates in accordance with the Privacy Act 1988 (Cth) and the Australian Privacy Principles (APPs) to the extent they apply. As we do not collect personal information in the ordinary course of operating this website, most APPs are not directly applicable. However, we are committed to handling any information we do collect responsibly and transparently.",
+      body: "This website is operated in accordance with the Privacy Act 1988 (Cth) and the Australian Privacy Principles to the extent they apply. We do not collect personal information in the ordinary course of operating this website.",
     },
     {
       title: "8. Data Retention",
-      body: "Analytics and advertising data collected by third-party services (Google) is retained in accordance with their own privacy policies. We do not store personal data on our own servers. Cookie consent preferences are stored locally in your browser.",
+      body: "We do not store personal data on our own servers. Analytics data held by Vercel and advertising data held by Google are retained in accordance with their respective privacy policies. Cookie consent preferences are stored locally in your browser only.",
     },
     {
-      title: "9. Children",
-      body: "This website is intended for professional and semi-professional use by adults. We do not knowingly collect any information from children under the age of 13.",
+      title: "9. Your Rights",
+      body: "You have the right to opt out of personalised advertising (via adssettings.google.com), disable cookies via your browser settings, and request information about any personal data we hold about you by contacting us. As we do not collect personal information, we are unlikely to hold any data about you directly.",
     },
     {
-      title: "10. Changes to This Policy",
-      body: "We may update this Privacy Policy from time to time. Any changes will be posted on this page with an updated revision date. Continued use of the website after changes are posted constitutes acceptance of the updated policy.",
+      title: "10. Children",
+      body: "This website is intended for use by adults. We do not knowingly collect information from children under the age of 13.",
     },
     {
-      title: "11. Contact",
-      body: "If you have questions about this Privacy Policy or how your information is handled, please contact us via the feedback link on the homepage.",
+      title: "11. Changes to This Policy",
+      body: "We may update this Privacy Policy from time to time. Updates will be posted on this page with a revised date. Continued use of the website after any update constitutes acceptance of the revised policy.",
+    },
+    {
+      title: "12. Contact",
+      body: "If you have questions about this Privacy Policy, please contact us via the Contact page.",
     },
   ];
 
@@ -913,6 +911,7 @@ function PrivacyPage({ nav }) {
     <div style={{ minHeight: "100vh", background: "#f5f2eb", fontFamily: "'Georgia', 'Times New Roman', serif" }}>
       <TopBar nav={nav} />
       <div style={{ maxWidth: 760, margin: "0 auto", padding: "48px 24px 80px" }}>
+
         <div style={{ marginBottom: 40 }}>
           <div style={{ fontSize: 10, letterSpacing: "0.3em", color: "#f5a623", fontFamily: "'Courier New', monospace", fontWeight: 700, marginBottom: 10 }}>AUSELECTRICAL.TOOLS</div>
           <h1 style={{ margin: "0 0 12px", fontSize: 32, fontWeight: 700, color: "#1a1a1a", letterSpacing: "-0.5px" }}>Privacy Policy</h1>
@@ -921,7 +920,7 @@ function PrivacyPage({ nav }) {
 
         <div style={{ background: "#e8f4ff", border: "2px solid #0077cc", borderRadius: 2, padding: "14px 18px", marginBottom: 36 }}>
           <p style={{ margin: 0, fontSize: 13, color: "#004a80", lineHeight: 1.7, fontFamily: "'Courier New', monospace" }}>
-            ℹ This site uses cookies for analytics and advertising. By continuing to use this site, you accept our use of cookies as described below.
+            ℹ This site uses cookies for analytics and advertising purposes. By continuing to use this site, you consent to our use of cookies as described below.
           </p>
         </div>
 
@@ -933,8 +932,10 @@ function PrivacyPage({ nav }) {
           </div>
         ))}
 
-        <div style={{ marginTop: 48, padding: "16px 20px", background: "#fff", border: "2px solid #ddd", borderRadius: 2, fontFamily: "'Courier New', monospace", fontSize: 12, color: "#888", lineHeight: 1.7 }}>
-          For Google AdSense opt-out: <span style={{ color: "#0077cc" }}>adssettings.google.com</span> · Google Privacy Policy: <span style={{ color: "#0077cc" }}>policies.google.com/privacy</span>
+        <div style={{ marginTop: 48, padding: "16px 20px", background: "#fff", border: "2px solid #ddd", borderRadius: 2, fontFamily: "'Courier New', monospace", fontSize: 12, color: "#888", lineHeight: 1.9 }}>
+          <div>Opt out of personalised ads: <span style={{ color: "#0077cc" }}>adssettings.google.com</span></div>
+          <div>Google Privacy Policy: <span style={{ color: "#0077cc" }}>policies.google.com/privacy</span></div>
+          <div>Vercel Privacy Policy: <span style={{ color: "#0077cc" }}>vercel.com/legal/privacy-policy</span></div>
         </div>
       </div>
       <Footer nav={nav} />
@@ -1038,6 +1039,105 @@ function AboutPage({ nav }) {
             Browse Calculators →
           </button>
         </div>
+      </div>
+      <Footer nav={nav} />
+    </div>
+  );
+}
+
+// ─── CONTACT PAGE ────────────────────────────────────────────────────────────
+
+function ContactPage({ nav }) {
+  const [copied, setCopied] = useState(false);
+  const email = "auselectricaltools@gmail.com";
+
+  const copyEmail = () => {
+    navigator.clipboard.writeText(email).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    });
+  };
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#f5f2eb", fontFamily: "'Georgia', 'Times New Roman', serif" }}>
+      <TopBar nav={nav} />
+      <div style={{ maxWidth: 640, margin: "0 auto", padding: "64px 24px 80px" }}>
+
+        {/* Heading */}
+        <div style={{ marginBottom: 48 }}>
+          <div style={{ fontSize: 10, letterSpacing: "0.3em", color: "#f5a623", fontFamily: "'Courier New', monospace", fontWeight: 700, marginBottom: 10 }}>AUSELECTRICAL.TOOLS</div>
+          <h1 style={{ margin: "0 0 12px", fontSize: 32, fontWeight: 700, color: "#1a1a1a", letterSpacing: "-0.5px" }}>Contact</h1>
+          <p style={{ margin: 0, fontSize: 15, color: "#666", lineHeight: 1.8 }}>
+            Questions, feedback, or suggestions for new calculators — we'd love to hear from you.
+          </p>
+        </div>
+
+        {/* Email card */}
+        <div style={{ background: "#fff", border: "2px solid #1a1a1a", borderRadius: 2, padding: "28px 32px", boxShadow: "6px 6px 0 #f5a623", marginBottom: 24 }}>
+          <div style={{ fontSize: 10, letterSpacing: "0.2em", color: "#aaa", fontFamily: "'Courier New', monospace", fontWeight: 700, marginBottom: 12, textTransform: "uppercase" }}>Email Us</div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+            <a href={`mailto:${email}`} style={{ fontSize: 18, fontWeight: 700, color: "#1a1a1a", fontFamily: "'Courier New', monospace", textDecoration: "none", letterSpacing: "-0.3px" }}>
+              {email}
+            </a>
+            <div style={{ display: "flex", gap: 8 }}>
+              <a href={`mailto:${email}`} style={{
+                padding: "8px 18px", background: "#1a1a1a", border: "2px solid #1a1a1a",
+                borderRadius: 2, cursor: "pointer", fontFamily: "'Courier New', monospace",
+                fontSize: 11, fontWeight: 700, color: "#fff", letterSpacing: "0.1em",
+                textTransform: "uppercase", textDecoration: "none",
+                display: "inline-block", transition: "all 0.15s",
+              }}>
+                Open in Mail
+              </a>
+              <button onClick={copyEmail} style={{
+                padding: "8px 18px", background: copied ? "#e8f5e9" : "#fff",
+                border: `2px solid ${copied ? "#2a7a2a" : "#ddd"}`,
+                borderRadius: 2, cursor: "pointer", fontFamily: "'Courier New', monospace",
+                fontSize: 11, fontWeight: 700, color: copied ? "#2a7a2a" : "#888",
+                letterSpacing: "0.1em", textTransform: "uppercase", transition: "all 0.2s",
+              }}>
+                {copied ? "✓ Copied" : "Copy"}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Response time note */}
+        <div style={{ padding: "14px 18px", background: "#f9f7f2", border: "1px solid #e0ddd4", borderRadius: 2, marginBottom: 40 }}>
+          <p style={{ margin: 0, fontSize: 12, color: "#888", fontFamily: "'Courier New', monospace", lineHeight: 1.7 }}>
+            We aim to respond within 2–3 business days. For calculator suggestions, please include the calculation type, the relevant Australian Standard, and any specific inputs or edge cases you have in mind.
+          </p>
+        </div>
+
+        {/* What to contact about */}
+        <div style={{ marginBottom: 40 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+            <div style={{ width: 4, height: 22, background: "#f5a623" }} />
+            <h2 style={{ margin: 0, fontSize: 13, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", color: "#1a1a1a", fontFamily: "'Courier New', monospace" }}>What To Contact Us About</h2>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {[
+              { icon: "→", text: "Suggesting a new calculator or standard to cover" },
+              { icon: "→", text: "Reporting an error or incorrect result in an existing calculator" },
+              { icon: "→", text: "Feedback on usability or features" },
+              { icon: "→", text: "Questions about the calculations or methodology" },
+              { icon: "→", text: "Advertising or partnership enquiries" },
+            ].map(item => (
+              <div key={item.text} style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "10px 14px", background: "#fff", border: "1px solid #e0ddd4", borderRadius: 2 }}>
+                <span style={{ color: "#f5a623", fontWeight: 700, fontFamily: "'Courier New', monospace", flexShrink: 0 }}>{item.icon}</span>
+                <span style={{ fontSize: 14, color: "#444", lineHeight: 1.6 }}>{item.text}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Disclaimer note */}
+        <div style={{ padding: "14px 18px", background: "#fff8e1", border: "1px solid #f5a623", borderRadius: 2 }}>
+          <p style={{ margin: 0, fontSize: 12, color: "#7a5c00", fontFamily: "'Courier New', monospace", lineHeight: 1.7 }}>
+            ⚠ We are not able to provide site-specific engineering advice or verify designs via email. For professional engineering services, please engage a suitably qualified engineer in your state or territory.
+          </p>
+        </div>
+
       </div>
       <Footer nav={nav} />
     </div>
