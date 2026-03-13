@@ -89,6 +89,7 @@ function TopBar({ nav }) {
           <NavLink onClick={() => nav("about")}>About</NavLink>
           <NavLink onClick={() => nav("contact")}>Contact</NavLink>
           <NavLink onClick={() => nav("terms")}>Terms of Use</NavLink>
+          <NavLink onClick={() => nav("privacy")}>Privacy Policy</NavLink>
         </div>
       </div>
     </div>
@@ -132,6 +133,7 @@ function Footer({ nav }) {
           <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
             <FooterLink onClick={() => nav("home")}>Calculators</FooterLink>
             <FooterLink onClick={() => nav("about")}>About</FooterLink>
+            <FooterLink onClick={() => nav("contact")}>Contact</FooterLink>
             <FooterLink onClick={() => nav("terms")}>Terms of Use</FooterLink>
             <FooterLink onClick={() => nav("privacy")}>Privacy Policy</FooterLink>
           </div>
@@ -251,6 +253,7 @@ function Homepage({ nav }) {
             <NavLink onClick={() => nav("about")}>About</NavLink>
             <NavLink onClick={() => nav("contact")}>Contact</NavLink>
             <NavLink onClick={() => nav("terms")}>Terms of Use</NavLink>
+            <NavLink onClick={() => nav("privacy")}>Privacy Policy</NavLink>
           </div>
         </div>
       </div>
@@ -431,7 +434,7 @@ function TermsPage({ nav }) {
 
         {/* Footer note */}
         <div style={{ marginTop: 48, padding: "16px 20px", background: "#fff", border: "2px solid #ddd", borderRadius: 2, fontFamily: "'Courier New', monospace", fontSize: 12, color: "#888", lineHeight: 1.7 }}>
-          Questions about these terms? Contact us via the feedback link on the homepage.
+          Questions about these terms? Visit our <button onClick={() => nav("contact")} style={{ background: "none", border: "none", cursor: "pointer", color: "#0077cc", fontSize: 12, fontFamily: "'Courier New', monospace", padding: 0, textDecoration: "underline" }}>Contact page</button> or email us at auselectricaltools@gmail.com. See also our <button onClick={() => nav("privacy")} style={{ background: "none", border: "none", cursor: "pointer", color: "#0077cc", fontSize: 12, fontFamily: "'Courier New', monospace", padding: 0, textDecoration: "underline" }}>Privacy Policy</button>.
         </div>
       </div>
       <Footer nav={nav} />
@@ -903,7 +906,7 @@ function PrivacyPage({ nav }) {
     },
     {
       title: "12. Contact",
-      body: "If you have questions about this Privacy Policy, please contact us via the Contact page.",
+      body: "If you have questions about this Privacy Policy, please visit our Contact page or email auselectricaltools@gmail.com.",
     },
   ];
 
@@ -1049,6 +1052,7 @@ function AboutPage({ nav }) {
 
 function ContactPage({ nav }) {
   const [copied, setCopied] = useState(false);
+  const [showMailMenu, setShowMailMenu] = useState(false);
   const email = "auselectricaltools@gmail.com";
 
   const copyEmail = () => {
@@ -1057,6 +1061,13 @@ function ContactPage({ nav }) {
       setTimeout(() => setCopied(false), 2500);
     });
   };
+
+  const mailClients = [
+    { label: "Gmail",         url: `https://mail.google.com/mail/?view=cm&to=${email}` },
+    { label: "Outlook Web",   url: `https://outlook.live.com/mail/0/deeplink/compose?to=${email}` },
+    { label: "Yahoo Mail",    url: `https://compose.mail.yahoo.com/?to=${email}` },
+    { label: "Default App",   url: `mailto:${email}` },
+  ];
 
   return (
     <div style={{ minHeight: "100vh", background: "#f5f2eb", fontFamily: "'Georgia', 'Times New Roman', serif" }}>
@@ -1079,16 +1090,49 @@ function ContactPage({ nav }) {
             <a href={`mailto:${email}`} style={{ fontSize: 18, fontWeight: 700, color: "#1a1a1a", fontFamily: "'Courier New', monospace", textDecoration: "none", letterSpacing: "-0.3px" }}>
               {email}
             </a>
-            <div style={{ display: "flex", gap: 8 }}>
-              <a href={`mailto:${email}`} style={{
-                padding: "8px 18px", background: "#1a1a1a", border: "2px solid #1a1a1a",
-                borderRadius: 2, cursor: "pointer", fontFamily: "'Courier New', monospace",
-                fontSize: 11, fontWeight: 700, color: "#fff", letterSpacing: "0.1em",
-                textTransform: "uppercase", textDecoration: "none",
-                display: "inline-block", transition: "all 0.15s",
-              }}>
-                Open in Mail
-              </a>
+            <div style={{ display: "flex", gap: 8, position: "relative" }}>
+              {/* Mail client dropdown */}
+              <div style={{ position: "relative" }}>
+                <button
+                  onClick={() => setShowMailMenu(v => !v)}
+                  style={{
+                    padding: "8px 18px", background: "#1a1a1a", border: "2px solid #1a1a1a",
+                    borderRadius: 2, cursor: "pointer", fontFamily: "'Courier New', monospace",
+                    fontSize: 11, fontWeight: 700, color: "#fff", letterSpacing: "0.1em",
+                    textTransform: "uppercase", display: "flex", alignItems: "center", gap: 6,
+                  }}>
+                  Send Email <span style={{ fontSize: 9 }}>{showMailMenu ? "▲" : "▼"}</span>
+                </button>
+                {showMailMenu && (
+                  <div style={{
+                    position: "absolute", top: "calc(100% + 4px)", right: 0,
+                    background: "#fff", border: "2px solid #1a1a1a", borderRadius: 2,
+                    boxShadow: "4px 4px 0 #f5a623", zIndex: 50, minWidth: 160, overflow: "hidden",
+                  }}>
+                    {mailClients.map(client => (
+                      <a
+                        key={client.label}
+                        href={client.url}
+                        target={client.label === "Default App" ? "_self" : "_blank"}
+                        rel="noopener noreferrer"
+                        onClick={() => setShowMailMenu(false)}
+                        style={{
+                          display: "block", padding: "10px 16px",
+                          fontFamily: "'Courier New', monospace", fontSize: 11,
+                          color: "#1a1a1a", textDecoration: "none", fontWeight: 700,
+                          letterSpacing: "0.05em", borderBottom: "1px solid #f0ece3",
+                          transition: "background 0.1s",
+                        }}
+                        onMouseEnter={e => e.target.style.background = "#f5f2eb"}
+                        onMouseLeave={e => e.target.style.background = "#fff"}
+                      >
+                        {client.label}
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {/* Copy button */}
               <button onClick={copyEmail} style={{
                 padding: "8px 18px", background: copied ? "#e8f5e9" : "#fff",
                 border: `2px solid ${copied ? "#2a7a2a" : "#ddd"}`,
