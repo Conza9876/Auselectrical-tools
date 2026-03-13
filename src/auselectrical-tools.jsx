@@ -56,6 +56,7 @@ export default function App() {
     setCookieAccepted(true);
   };
 
+  if (page === "motor-inrush")       return <><GlobalStyles /><Analytics /><SpeedInsights /><MotorInrushCalculator nav={nav} />{!cookieAccepted && <CookieBanner onAccept={acceptCookies} nav={nav} />}</>;
   if (page === "flc")               return <><GlobalStyles /><Analytics /><SpeedInsights /><FLCCalculator nav={nav} />{!cookieAccepted && <CookieBanner onAccept={acceptCookies} nav={nav} />}</>;
   if (page === "three-phase-power") return <><GlobalStyles /><Analytics /><SpeedInsights /><ThreePhasePowerCalculator nav={nav} />{!cookieAccepted && <CookieBanner onAccept={acceptCookies} nav={nav} />}</>;
   if (page === "ohms-law")          return <><GlobalStyles /><Analytics /><SpeedInsights /><OhmsLawCalculator nav={nav} />{!cookieAccepted && <CookieBanner onAccept={acceptCookies} nav={nav} />}</>;
@@ -190,6 +191,7 @@ const CATEGORIES = [
   {
     id: "motors", label: "Motors & Drives",
     calculators: [
+      { id: "motor-inrush",     title: "Motor Inrush & FLC",        desc: "Calculate full load and inrush current for DOL, star-delta, soft starter and VFD starting.", tags: ["DOL", "Star-Delta", "VFD", "Inrush", "FLC"], status: "live" },
       { id: "motor-starting",   title: "Motor Starting Current",    desc: "Estimate starting current for DOL, star-delta and VFD starting methods.",        tags: ["DOL", "Star-Delta", "VFD"],  status: "soon" },
       { id: "motor-efficiency", title: "Motor Efficiency & Losses", desc: "Calculate input power, losses and efficiency from output and efficiency rating.", tags: ["HP", "kW", "Efficiency"],    status: "soon" },
     ],
@@ -1182,6 +1184,300 @@ function ContactPage({ nav }) {
           </p>
         </div>
 
+      </div>
+      <Footer nav={nav} />
+    </div>
+  );
+}
+
+// ─── MOTOR INRUSH & FLC CALCULATOR ──────────────────────────────────────────
+
+function calculateMotorInrush({ voltage, powerKw, powerFactor, efficiency, startingMethod, customMultiplier }) {
+  if (!voltage || !powerKw) return null;
+
+  const eff = efficiency / 100;
+  const pf  = powerFactor;
+  const V   = voltage;
+  const kW  = powerKw;
+
+  // FLC — three phase motor (AS/NZS 1359, standard industrial formula)
+  // I_FLC = (kW × 1000) / (√3 × V × PF × η)
+  const flc = (kW * 1000) / (Math.sqrt(3) * V * pf * eff);
+
+  // Inrush multipliers by starting method
+  // DOL: 6–8× FLC typical (AS 1359 / IEC 60034 — use 6 as conservative standard)
+  // Star-Delta: reduces voltage to 1/√3, so current reduced to 1/3 of DOL inrush
+  // Soft Starter: typically 2–3.5× FLC (adjustable — use 2.5 default)
+  // VFD: approximately 1.0–1.5× FLC (current-limited by drive — use 1.0)
+  const methods = {
+    dol:          { label: "DOL (Direct On-Line)",    multiplier: 6.0,  note: "6× FLC — AS/NZS 1359 typical" },
+    "star-delta": { label: "Star-Delta",              multiplier: 2.0,  note: "≈2× FLC (1/3 of DOL inrush)" },
+    "soft-start": { label: "Soft Starter",            multiplier: 2.5,  note: "2.5× FLC — adjustable, typical setting" },
+    vfd:          { label: "VFD / Variable Speed",    multiplier: 1.0,  note: "≈1× FLC — current limited by drive" },
+    custom:       { label: "Custom Multiplier",       multiplier: customMultiplier, note: `${customMultiplier}× FLC — user defined` },
+  };
+
+  const method   = methods[startingMethod];
+  const inrush   = flc * method.multiplier;
+
+  // Protection sizing hints (AS/NZS 3000 Table C3 — Type D MCB or HRC fuse for motor circuits)
+  // MCB Type D: ≥10× FLC, commonly 10–20× — size to ≥ inrush but ≥ 125% FLC for continuous
+  const mcbSuggestion  = Math.ceil(flc * 1.25 / 5) * 5;   // round up to next 5A
+  const fuseHRC        = Math.ceil(flc * 1.5  / 5) * 5;   // HRC fuse ~150% FLC
+
+  return {
+    flc:        Math.round(flc    * 100) / 100,
+    inrush:     Math.round(inrush * 100) / 100,
+    multiplier: method.multiplier,
+    methodLabel: method.label,
+    methodNote:  method.note,
+    mcb:        mcbSuggestion,
+    fuse:       fuseHRC,
+    inputPower: Math.round((kW / eff) * 100) / 100,
+    formulaFLC: `I_FLC = (${kW} × 1000) / (√3 × ${V} × ${pf} × ${eff.toFixed(2)})`,
+    formulaInrush: `I_inrush = ${flc.toFixed(2)} × ${method.multiplier} = ${inrush.toFixed(2)} A`,
+  };
+}
+
+function MotorInrushCalculator({ nav }) {
+  const [voltage,         setVoltage]         = useState("415");
+  const [powerUnit,       setPowerUnit]        = useState("kW");
+  const [powerValue,      setPowerValue]       = useState("");
+  const [powerFactor,     setPowerFactor]      = useState(0.85);
+  const [efficiency,      setEfficiency]       = useState(92);
+  const [startingMethod,  setStartingMethod]   = useState("dol");
+  const [customMult,      setCustomMult]       = useState("6");
+  const [result,          setResult]           = useState(null);
+  const [flash,           setFlash]            = useState(false);
+  const [activeTab,       setActiveTab]        = useState("results");
+
+  // Convert HP to kW if needed
+  const getKw = () => {
+    const v = parseFloat(powerValue);
+    if (!v) return null;
+    return powerUnit === "HP" ? v * 0.7457 : v;
+  };
+
+  useEffect(() => {
+    const kW = getKw();
+    const r = calculateMotorInrush({
+      voltage: parseFloat(voltage),
+      powerKw: kW,
+      powerFactor,
+      efficiency,
+      startingMethod,
+      customMultiplier: parseFloat(customMult) || 6,
+    });
+    setResult(r);
+    if (r) { setFlash(true); setTimeout(() => setFlash(false), 300); }
+  }, [voltage, powerValue, powerUnit, powerFactor, efficiency, startingMethod, customMult]);
+
+  const commonVoltages = [415, 400, 380, 3300, 6600, 11000];
+
+  const startingMethods = [
+    { id: "dol",          label: "DOL",         sub: "Direct On-Line" },
+    { id: "star-delta",   label: "Y/Δ",         sub: "Star-Delta" },
+    { id: "soft-start",   label: "SS",          sub: "Soft Starter" },
+    { id: "vfd",          label: "VFD",         sub: "Variable Speed" },
+    { id: "custom",       label: "Custom",      sub: "User Defined" },
+  ];
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#f5f2eb", fontFamily: "'Georgia', 'Times New Roman', serif" }}>
+      <TopBar nav={nav} />
+      <BackBreadcrumb nav={nav} label="Motor Inrush & FLC" />
+      <div style={{ display: "flex", justifyContent: "center", padding: "32px 24px" }}>
+        <div style={{ width: "100%", maxWidth: 520, background: "#fff", border: "2px solid #1a1a1a", boxShadow: "6px 6px 0px #1a1a1a", borderRadius: 2 }}>
+
+          {/* Header */}
+          <div style={{ background: "#1a1a1a", padding: "20px 28px" }}>
+            <div style={{ fontSize: 10, letterSpacing: "0.3em", color: "#f5a623", fontWeight: 700, marginBottom: 6, fontFamily: "'Courier New', monospace" }}>AUSELECTRICAL.TOOLS — MOTORS</div>
+            <h1 style={{ margin: 0, fontSize: 22, color: "#fff", fontWeight: 700 }}>Motor Inrush & FLC</h1>
+            <p style={{ margin: "4px 0 0", fontSize: 12, color: "#888", fontFamily: "'Courier New', monospace" }}>Three Phase AC Induction Motor · AS/NZS 1359</p>
+          </div>
+
+          <div style={{ padding: "24px 28px", display: "flex", flexDirection: "column", gap: 20 }}>
+
+            {/* Voltage */}
+            <div>
+              <CalcLabel>System Voltage (V)</CalcLabel>
+              <input type="number" value={voltage} onChange={e => setVoltage(e.target.value)} style={inputStyle} placeholder="e.g. 415" />
+              <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
+                {commonVoltages.map(v => (
+                  <button key={v} onClick={() => setVoltage(String(v))} style={{ padding: "3px 10px", fontSize: 11, border: `1px solid ${voltage === String(v) ? "#1a1a1a" : "#ccc"}`, background: voltage === String(v) ? "#1a1a1a" : "#f9f9f9", color: voltage === String(v) ? "#fff" : "#555", borderRadius: 2, cursor: "pointer", fontFamily: "'Courier New', monospace", transition: "all 0.1s" }}>
+                    {v >= 1000 ? `${v/1000}kV` : `${v}V`}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Motor Power */}
+            <div>
+              <CalcLabel>Motor Output Power</CalcLabel>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input type="number" value={powerValue} onChange={e => setPowerValue(e.target.value)} style={{ ...inputStyle, flex: 1 }} placeholder="Enter value" min="0" step="0.1" />
+                <div style={{ display: "flex", border: "2px solid #1a1a1a", borderRadius: 2, overflow: "hidden" }}>
+                  {["kW", "HP"].map(u => (
+                    <button key={u} onClick={() => setPowerUnit(u)} style={{ padding: "0 16px", border: "none", borderLeft: u !== "kW" ? "1px solid #1a1a1a" : "none", background: powerUnit === u ? "#f5a623" : "#fff", color: "#1a1a1a", cursor: "pointer", fontFamily: "'Courier New', monospace", fontSize: 12, fontWeight: powerUnit === u ? 700 : 400, transition: "background 0.15s" }}>{u}</button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Power Factor */}
+            <div>
+              <CalcLabel>Power Factor — <span style={{ color: "#f5a623", fontFamily: "'Courier New', monospace" }}>{powerFactor.toFixed(2)}</span></CalcLabel>
+              <input type="range" min="0.6" max="0.95" step="0.01" value={powerFactor} onChange={e => setPowerFactor(parseFloat(e.target.value))} style={{ width: "100%", accentColor: "#1a1a1a", cursor: "pointer" }} />
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "#aaa", fontFamily: "'Courier New', monospace", marginTop: 2 }}>
+                <span>0.60</span><span>0.80 (typical motor)</span><span>0.95</span>
+              </div>
+            </div>
+
+            {/* Efficiency */}
+            <div>
+              <CalcLabel>Motor Efficiency — <span style={{ color: "#f5a623", fontFamily: "'Courier New', monospace" }}>{efficiency}%</span></CalcLabel>
+              <input type="range" min="70" max="98" step="1" value={efficiency} onChange={e => setEfficiency(parseInt(e.target.value))} style={{ width: "100%", accentColor: "#1a1a1a", cursor: "pointer" }} />
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "#aaa", fontFamily: "'Courier New', monospace", marginTop: 2 }}>
+                <span>70%</span><span>92% (IE3 typical)</span><span>98%</span>
+              </div>
+            </div>
+
+            {/* Starting Method */}
+            <div>
+              <CalcLabel>Starting Method</CalcLabel>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 6 }}>
+                {startingMethods.map(m => (
+                  <button key={m.id} onClick={() => setStartingMethod(m.id)} style={{
+                    padding: "10px 4px", border: `2px solid ${startingMethod === m.id ? "#1a1a1a" : "#ddd"}`,
+                    background: startingMethod === m.id ? "#1a1a1a" : "#fff",
+                    color: startingMethod === m.id ? "#fff" : "#666",
+                    borderRadius: 2, cursor: "pointer", transition: "all 0.15s",
+                    boxShadow: startingMethod === m.id ? "3px 3px 0 #f5a623" : "none",
+                  }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, fontFamily: "'Courier New', monospace" }}>{m.label}</div>
+                    <div style={{ fontSize: 9, marginTop: 3, fontFamily: "'Courier New', monospace", letterSpacing: "0.03em", lineHeight: 1.3 }}>{m.sub}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Custom multiplier input */}
+            {startingMethod === "custom" && (
+              <div>
+                <CalcLabel>Inrush Multiplier (× FLC)</CalcLabel>
+                <input type="number" value={customMult} onChange={e => setCustomMult(e.target.value)} style={inputStyle} placeholder="e.g. 6" min="1" max="15" step="0.1" />
+                <div style={{ fontSize: 10, color: "#aaa", fontFamily: "'Courier New', monospace", marginTop: 4 }}>
+                  Typical range: DOL 5–8×, Star-Delta 1.5–2.5×, Soft Starter 2–4×
+                </div>
+              </div>
+            )}
+
+            <div style={{ borderTop: "2px dashed #e0e0e0" }} />
+
+            {/* Results */}
+            <div style={{ background: result ? (flash ? "#fffbf0" : "#fafafa") : "#fafafa", border: `2px solid ${result ? "#1a1a1a" : "#e0e0e0"}`, borderRadius: 2, padding: "20px", transition: "background 0.3s", boxShadow: result ? "4px 4px 0 #f5a623" : "none" }}>
+              {result ? (
+                <>
+                  {/* Tab bar */}
+                  <div style={{ display: "flex", gap: 0, marginBottom: 16, border: "2px solid #1a1a1a", borderRadius: 2, overflow: "hidden" }}>
+                    {[{ id: "results", label: "Results" }, { id: "formulas", label: "Formulas" }, { id: "protection", label: "Protection" }].map(tab => (
+                      <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{
+                        flex: 1, padding: "7px 4px", border: "none",
+                        borderLeft: tab.id !== "results" ? "1px solid #1a1a1a" : "none",
+                        background: activeTab === tab.id ? "#f5a623" : "#fff",
+                        color: "#1a1a1a", cursor: "pointer",
+                        fontFamily: "'Courier New', monospace", fontSize: 10,
+                        fontWeight: activeTab === tab.id ? 700 : 400,
+                        letterSpacing: "0.05em", transition: "background 0.15s",
+                      }}>
+                        {tab.label.toUpperCase()}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Results tab */}
+                  {activeTab === "results" && (
+                    <>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
+                        {/* FLC */}
+                        <div style={{ background: "#fff", border: "2px solid #1a1a1a", borderRadius: 2, padding: "14px", textAlign: "center" }}>
+                          <div style={{ fontSize: 10, letterSpacing: "0.15em", color: "#888", fontFamily: "'Courier New', monospace", marginBottom: 4 }}>FULL LOAD CURRENT</div>
+                          <div style={{ fontSize: 36, fontWeight: 700, color: "#1a1a1a", lineHeight: 1, letterSpacing: "-1px" }}>{result.flc}</div>
+                          <div style={{ fontSize: 14, color: "#f5a623", fontWeight: 700, fontFamily: "'Courier New', monospace" }}>A</div>
+                        </div>
+                        {/* Inrush */}
+                        <div style={{ background: "#1a1a1a", border: "2px solid #1a1a1a", borderRadius: 2, padding: "14px", textAlign: "center" }}>
+                          <div style={{ fontSize: 10, letterSpacing: "0.15em", color: "#888", fontFamily: "'Courier New', monospace", marginBottom: 4 }}>INRUSH CURRENT</div>
+                          <div style={{ fontSize: 36, fontWeight: 700, color: "#fff", lineHeight: 1, letterSpacing: "-1px" }}>{result.inrush}</div>
+                          <div style={{ fontSize: 14, color: "#f5a623", fontWeight: 700, fontFamily: "'Courier New', monospace" }}>A</div>
+                        </div>
+                      </div>
+                      {/* Method note */}
+                      <div style={{ background: "#f5f2eb", border: "1px solid #e0ddd4", borderRadius: 2, padding: "8px 12px", marginBottom: 10 }}>
+                        <div style={{ fontSize: 10, fontFamily: "'Courier New', monospace", color: "#888", marginBottom: 2 }}>{result.methodLabel}</div>
+                        <div style={{ fontSize: 11, fontFamily: "'Courier New', monospace", color: "#555" }}>{result.methodNote} · {result.multiplier}× FLC</div>
+                      </div>
+                      {/* Secondary stats */}
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                        <MiniStat label="Input Power" value={`${result.inputPower} kW`} />
+                        <MiniStat label="Output Power" value={`${getKw()?.toFixed(2)} kW`} />
+                      </div>
+                    </>
+                  )}
+
+                  {/* Formulas tab */}
+                  {activeTab === "formulas" && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                      <div>
+                        <div style={{ fontSize: 10, color: "#aaa", fontFamily: "'Courier New', monospace", marginBottom: 4 }}>FULL LOAD CURRENT</div>
+                        <div style={{ background: "#1a1a1a", padding: "10px 14px", borderRadius: 2, fontFamily: "'Courier New', monospace", fontSize: 11, color: "#f5a623", wordBreak: "break-all", lineHeight: 1.8 }}>
+                          {result.formulaFLC}
+                          <div style={{ color: "#666", marginTop: 4 }}>= {result.flc} A</div>
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 10, color: "#aaa", fontFamily: "'Courier New', monospace", marginBottom: 4 }}>INRUSH CURRENT</div>
+                        <div style={{ background: "#1a1a1a", padding: "10px 14px", borderRadius: 2, fontFamily: "'Courier New', monospace", fontSize: 11, color: "#f5a623", wordBreak: "break-all", lineHeight: 1.8 }}>
+                          {result.formulaInrush}
+                        </div>
+                      </div>
+                      <div style={{ padding: "8px 12px", background: "#f5f2eb", border: "1px solid #e0ddd4", borderRadius: 2, fontSize: 10, color: "#888", fontFamily: "'Courier New', monospace", lineHeight: 1.7 }}>
+                        η = efficiency · PF = power factor · V = line voltage<br/>
+                        Reference: AS/NZS 1359 · IEC 60034
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Protection tab */}
+                  {activeTab === "protection" && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                        <div style={{ background: "#fff", border: "2px solid #1a1a1a", borderRadius: 2, padding: "12px", textAlign: "center" }}>
+                          <div style={{ fontSize: 9, letterSpacing: "0.1em", color: "#888", fontFamily: "'Courier New', monospace", marginBottom: 4 }}>MCB (TYPE D)</div>
+                          <div style={{ fontSize: 28, fontWeight: 700, color: "#1a1a1a" }}>{result.mcb}A</div>
+                          <div style={{ fontSize: 9, color: "#aaa", fontFamily: "'Courier New', monospace" }}>min. rating</div>
+                        </div>
+                        <div style={{ background: "#fff", border: "2px solid #1a1a1a", borderRadius: 2, padding: "12px", textAlign: "center" }}>
+                          <div style={{ fontSize: 9, letterSpacing: "0.1em", color: "#888", fontFamily: "'Courier New', monospace", marginBottom: 4 }}>HRC FUSE</div>
+                          <div style={{ fontSize: 28, fontWeight: 700, color: "#1a1a1a" }}>{result.fuse}A</div>
+                          <div style={{ fontSize: 9, color: "#aaa", fontFamily: "'Courier New', monospace" }}>min. rating</div>
+                        </div>
+                      </div>
+                      <div style={{ padding: "8px 12px", background: "#fff8e1", border: "1px solid #f5a623", borderRadius: 2, fontSize: 10, color: "#7a5c00", fontFamily: "'Courier New', monospace", lineHeight: 1.7 }}>
+                        ⚠ Indicative sizing only. Verify against AS/NZS 3000 Table C3,
+                        motor nameplate data, and protection coordination study.
+                        Type D MCB recommended for motor circuits.
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div style={{ textAlign: "center", padding: "10px 0", color: "#bbb", fontFamily: "'Courier New', monospace", fontSize: 12 }}>Enter motor details to calculate</div>
+              )}
+            </div>
+            <Disclaimer />
+          </div>
+        </div>
       </div>
       <Footer nav={nav} />
     </div>
