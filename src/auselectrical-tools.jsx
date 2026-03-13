@@ -56,6 +56,7 @@ export default function App() {
     setCookieAccepted(true);
   };
 
+  if (page === "motor-speed-torque") return <><GlobalStyles /><Analytics /><SpeedInsights /><MotorSpeedTorqueCalculator nav={nav} />{!cookieAccepted && <CookieBanner onAccept={acceptCookies} nav={nav} />}</>;
   if (page === "motor-inrush")       return <><GlobalStyles /><Analytics /><SpeedInsights /><MotorInrushCalculator nav={nav} />{!cookieAccepted && <CookieBanner onAccept={acceptCookies} nav={nav} />}</>;
   if (page === "flc")               return <><GlobalStyles /><Analytics /><SpeedInsights /><FLCCalculator nav={nav} />{!cookieAccepted && <CookieBanner onAccept={acceptCookies} nav={nav} />}</>;
   if (page === "three-phase-power") return <><GlobalStyles /><Analytics /><SpeedInsights /><ThreePhasePowerCalculator nav={nav} />{!cookieAccepted && <CookieBanner onAccept={acceptCookies} nav={nav} />}</>;
@@ -191,9 +192,9 @@ const CATEGORIES = [
   {
     id: "motors", label: "Motors & Drives",
     calculators: [
+      { id: "motor-speed-torque", title: "Motor Speed & Torque",   desc: "Calculate synchronous speed, slip, shaft torque and mechanical power for AC induction motors.", tags: ["RPM", "Torque", "Slip", "Nm", "kW"], status: "live" },
       { id: "motor-inrush",     title: "Motor Inrush & FLC",        desc: "Calculate full load and inrush current for DOL, star-delta, soft starter and VFD starting.", tags: ["DOL", "Star-Delta", "VFD", "Inrush", "FLC"], status: "live" },
-      { id: "motor-starting",   title: "Motor Starting Current",    desc: "Estimate starting current for DOL, star-delta and VFD starting methods.",        tags: ["DOL", "Star-Delta", "VFD"],  status: "soon" },
-      { id: "motor-efficiency", title: "Motor Efficiency & Losses", desc: "Calculate input power, losses and efficiency from output and efficiency rating.", tags: ["HP", "kW", "Efficiency"],    status: "soon" },
+
     ],
   },
   {
@@ -1190,6 +1191,241 @@ function ContactPage({ nav }) {
   );
 }
 
+// ─── MOTOR SPEED & TORQUE CALCULATOR ─────────────────────────────────────────
+
+function calculateMotorSpeedTorque({ poles, frequency, slip, powerKw }) {
+  if (!poles || !frequency) return null;
+
+  // Synchronous speed: Ns = (120 × f) / P
+  const syncSpeed = (120 * frequency) / poles;
+
+  // Actual (rotor) speed: Nr = Ns × (1 - slip/100)
+  const rotorSpeed = syncSpeed * (1 - slip / 100);
+
+  // Shaft torque from power: T = (P × 1000 × 60) / (2π × Nr)
+  // Only if power provided
+  let torque = null;
+  let torqueNm = null;
+  if (powerKw && rotorSpeed > 0) {
+    torqueNm = (powerKw * 1000 * 60) / (2 * Math.PI * rotorSpeed);
+  }
+
+  // Slip speed
+  const slipSpeed = syncSpeed - rotorSpeed;
+
+  return {
+    syncSpeed:   Math.round(syncSpeed   * 10) / 10,
+    rotorSpeed:  Math.round(rotorSpeed  * 10) / 10,
+    slipSpeed:   Math.round(slipSpeed   * 10) / 10,
+    slipPct:     slip,
+    torqueNm:    torqueNm != null ? Math.round(torqueNm * 10) / 10 : null,
+    formulaSync:  `Ns = (120 × ${frequency}) / ${poles} = ${Math.round((120 * frequency) / poles)} RPM`,
+    formulaRotor: `Nr = ${Math.round(syncSpeed)} × (1 − ${slip}/100) = ${Math.round(rotorSpeed * 10) / 10} RPM`,
+    formulaTorque: powerKw && rotorSpeed > 0
+      ? `T = (${powerKw} × 1000 × 60) / (2π × ${Math.round(rotorSpeed * 10) / 10}) = ${Math.round(torqueNm * 10) / 10} Nm`
+      : null,
+  };
+}
+
+function MotorSpeedTorqueCalculator({ nav }) {
+  const [poles,      setPoles]      = useState(4);
+  const [frequency,  setFrequency]  = useState(50);
+  const [slip,       setSlip]       = useState(3);
+  const [powerUnit,  setPowerUnit]  = useState("kW");
+  const [powerValue, setPowerValue] = useState("");
+  const [activeTab,  setActiveTab]  = useState("results");
+  const [flash,      setFlash]      = useState(false);
+
+  const getKw = () => {
+    const v = parseFloat(powerValue);
+    if (!v) return null;
+    return powerUnit === "HP" ? v * 0.7457 : v;
+  };
+
+  const result = calculateMotorSpeedTorque({
+    poles,
+    frequency,
+    slip,
+    powerKw: getKw(),
+  });
+
+  useEffect(() => {
+    if (result) { setFlash(true); setTimeout(() => setFlash(false), 300); }
+  }, [poles, frequency, slip, powerValue, powerUnit]);
+
+  const poleOptions = [2, 4, 6, 8, 10, 12];
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#f5f2eb", fontFamily: "'Georgia', 'Times New Roman', serif" }}>
+      <TopBar nav={nav} />
+      <BackBreadcrumb nav={nav} label="Motor Speed & Torque" />
+      <div style={{ display: "flex", justifyContent: "center", padding: "32px 24px" }}>
+        <div style={{ width: "100%", maxWidth: 520, background: "#fff", border: "2px solid #1a1a1a", boxShadow: "6px 6px 0px #1a1a1a", borderRadius: 2 }}>
+
+          {/* Header */}
+          <div style={{ background: "#1a1a1a", padding: "20px 28px" }}>
+            <div style={{ fontSize: 10, letterSpacing: "0.3em", color: "#f5a623", fontWeight: 700, marginBottom: 6, fontFamily: "'Courier New', monospace" }}>AUSELECTRICAL.TOOLS — MOTORS</div>
+            <h1 style={{ margin: 0, fontSize: 22, color: "#fff", fontWeight: 700 }}>Motor Speed & Torque</h1>
+            <p style={{ margin: "4px 0 0", fontSize: 12, color: "#888", fontFamily: "'Courier New', monospace" }}>AC Induction Motor · Synchronous & Rotor Speed · Shaft Torque</p>
+          </div>
+
+          <div style={{ padding: "24px 28px", display: "flex", flexDirection: "column", gap: 20 }}>
+
+            {/* Frequency */}
+            <div>
+              <CalcLabel>Supply Frequency</CalcLabel>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                {[{ val: 50, label: "50 Hz", sub: "Australia / Europe" }, { val: 60, label: "60 Hz", sub: "USA / Americas" }].map(f => (
+                  <button key={f.val} onClick={() => setFrequency(f.val)} style={{
+                    padding: "12px 8px", border: `2px solid ${frequency === f.val ? "#1a1a1a" : "#ddd"}`,
+                    background: frequency === f.val ? "#1a1a1a" : "#fff",
+                    color: frequency === f.val ? "#fff" : "#666",
+                    borderRadius: 2, cursor: "pointer", fontFamily: "'Georgia', serif",
+                    transition: "all 0.15s", boxShadow: frequency === f.val ? "3px 3px 0 #f5a623" : "none",
+                  }}>
+                    <div style={{ fontSize: 18, fontWeight: 700 }}>{f.label}</div>
+                    <div style={{ fontSize: 11, marginTop: 2, fontFamily: "'Courier New', monospace", letterSpacing: "0.05em" }}>{f.sub}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Poles */}
+            <div>
+              <CalcLabel>Number of Poles</CalcLabel>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 6 }}>
+                {poleOptions.map(p => (
+                  <button key={p} onClick={() => setPoles(p)} style={{
+                    padding: "10px 4px", border: `2px solid ${poles === p ? "#1a1a1a" : "#ddd"}`,
+                    background: poles === p ? "#1a1a1a" : "#fff",
+                    color: poles === p ? "#fff" : "#666",
+                    borderRadius: 2, cursor: "pointer", transition: "all 0.15s",
+                    boxShadow: poles === p ? "3px 3px 0 #f5a623" : "none",
+                  }}>
+                    <div style={{ fontSize: 15, fontWeight: 700, fontFamily: "'Courier New', monospace" }}>{p}</div>
+                    <div style={{ fontSize: 9, marginTop: 2, fontFamily: "'Courier New', monospace", color: poles === p ? "#f5a623" : "#aaa" }}>
+                      {Math.round((120 * frequency) / p)} RPM
+                    </div>
+                  </button>
+                ))}
+              </div>
+              <div style={{ fontSize: 10, color: "#aaa", fontFamily: "'Courier New', monospace", marginTop: 6 }}>
+                Each button shows the synchronous speed at {frequency} Hz
+              </div>
+            </div>
+
+            {/* Slip */}
+            <div>
+              <CalcLabel>Rotor Slip — <span style={{ color: "#f5a623", fontFamily: "'Courier New', monospace" }}>{slip}%</span></CalcLabel>
+              <input type="range" min="0" max="10" step="0.1" value={slip} onChange={e => setSlip(parseFloat(e.target.value))} style={{ width: "100%", accentColor: "#1a1a1a", cursor: "pointer" }} />
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "#aaa", fontFamily: "'Courier New', monospace", marginTop: 2 }}>
+                <span>0% (sync)</span><span>2–4% (typical induction)</span><span>10%</span>
+              </div>
+            </div>
+
+            {/* Power (optional) */}
+            <div>
+              <CalcLabel>Shaft Output Power <span style={{ color: "#aaa", fontWeight: 400 }}>(optional — for torque)</span></CalcLabel>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input type="number" value={powerValue} onChange={e => setPowerValue(e.target.value)} style={{ ...inputStyle, flex: 1 }} placeholder="Enter value" min="0" step="0.1" />
+                <div style={{ display: "flex", border: "2px solid #1a1a1a", borderRadius: 2, overflow: "hidden" }}>
+                  {["kW", "HP"].map(u => (
+                    <button key={u} onClick={() => setPowerUnit(u)} style={{ padding: "0 16px", border: "none", borderLeft: u !== "kW" ? "1px solid #1a1a1a" : "none", background: powerUnit === u ? "#f5a623" : "#fff", color: "#1a1a1a", cursor: "pointer", fontFamily: "'Courier New', monospace", fontSize: 12, fontWeight: powerUnit === u ? 700 : 400, transition: "background 0.15s" }}>{u}</button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div style={{ borderTop: "2px dashed #e0e0e0" }} />
+
+            {/* Results */}
+            <div style={{ background: flash ? "#fffbf0" : "#fafafa", border: "2px solid #1a1a1a", borderRadius: 2, padding: "20px", transition: "background 0.3s", boxShadow: "4px 4px 0 #f5a623" }}>
+
+              {/* Tab bar */}
+              <div style={{ display: "flex", gap: 0, marginBottom: 16, border: "2px solid #1a1a1a", borderRadius: 2, overflow: "hidden" }}>
+                {[{ id: "results", label: "Results" }, { id: "formulas", label: "Formulas" }].map(tab => (
+                  <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{
+                    flex: 1, padding: "7px 4px", border: "none",
+                    borderLeft: tab.id !== "results" ? "1px solid #1a1a1a" : "none",
+                    background: activeTab === tab.id ? "#f5a623" : "#fff",
+                    color: "#1a1a1a", cursor: "pointer",
+                    fontFamily: "'Courier New', monospace", fontSize: 10,
+                    fontWeight: activeTab === tab.id ? 700 : 400,
+                    letterSpacing: "0.05em", transition: "background 0.15s",
+                  }}>
+                    {tab.label.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+
+              {activeTab === "results" && result && (
+                <>
+                  {/* Speed results — always shown */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
+                    <div style={{ background: "#fff", border: "2px solid #1a1a1a", borderRadius: 2, padding: "14px", textAlign: "center" }}>
+                      <div style={{ fontSize: 9, letterSpacing: "0.15em", color: "#888", fontFamily: "'Courier New', monospace", marginBottom: 4 }}>SYNCHRONOUS SPEED</div>
+                      <div style={{ fontSize: 32, fontWeight: 700, color: "#1a1a1a", lineHeight: 1, letterSpacing: "-1px" }}>{result.syncSpeed}</div>
+                      <div style={{ fontSize: 13, color: "#f5a623", fontWeight: 700, fontFamily: "'Courier New', monospace" }}>RPM</div>
+                    </div>
+                    <div style={{ background: "#1a1a1a", border: "2px solid #1a1a1a", borderRadius: 2, padding: "14px", textAlign: "center" }}>
+                      <div style={{ fontSize: 9, letterSpacing: "0.15em", color: "#888", fontFamily: "'Courier New', monospace", marginBottom: 4 }}>ROTOR SPEED</div>
+                      <div style={{ fontSize: 32, fontWeight: 700, color: "#fff", lineHeight: 1, letterSpacing: "-1px" }}>{result.rotorSpeed}</div>
+                      <div style={{ fontSize: 13, color: "#f5a623", fontWeight: 700, fontFamily: "'Courier New', monospace" }}>RPM</div>
+                    </div>
+                  </div>
+
+                  {/* Slip speed strip */}
+                  <div style={{ background: "#f5f2eb", border: "1px solid #e0ddd4", borderRadius: 2, padding: "8px 12px", marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: 11, fontFamily: "'Courier New', monospace", color: "#888" }}>Slip Speed</span>
+                    <span style={{ fontSize: 14, fontWeight: 700, fontFamily: "'Courier New', monospace", color: "#1a1a1a" }}>{result.slipSpeed} RPM ({result.slipPct}%)</span>
+                  </div>
+
+                  {/* Torque — only if power entered */}
+                  {result.torqueNm != null ? (
+                    <div style={{ background: "#fff", border: "2px solid #f5a623", borderRadius: 2, padding: "14px", textAlign: "center" }}>
+                      <div style={{ fontSize: 9, letterSpacing: "0.15em", color: "#888", fontFamily: "'Courier New', monospace", marginBottom: 4 }}>SHAFT TORQUE</div>
+                      <div style={{ fontSize: 42, fontWeight: 700, color: "#1a1a1a", lineHeight: 1, letterSpacing: "-1px" }}>{result.torqueNm}</div>
+                      <div style={{ fontSize: 16, color: "#f5a623", fontWeight: 700, fontFamily: "'Courier New', monospace" }}>N·m</div>
+                    </div>
+                  ) : (
+                    <div style={{ padding: "10px 12px", background: "#f9f7f2", border: "1px dashed #ccc", borderRadius: 2, fontSize: 11, color: "#aaa", fontFamily: "'Courier New', monospace", textAlign: "center" }}>
+                      Enter shaft power above to calculate torque
+                    </div>
+                  )}
+                </>
+              )}
+
+              {activeTab === "formulas" && result && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {[
+                    { label: "SYNCHRONOUS SPEED", formula: result.formulaSync },
+                    { label: "ROTOR SPEED",        formula: result.formulaRotor },
+                    ...(result.formulaTorque ? [{ label: "SHAFT TORQUE", formula: result.formulaTorque }] : []),
+                  ].map(row => (
+                    <div key={row.label}>
+                      <div style={{ fontSize: 10, color: "#aaa", fontFamily: "'Courier New', monospace", marginBottom: 4 }}>{row.label}</div>
+                      <div style={{ background: "#1a1a1a", padding: "10px 14px", borderRadius: 2, fontFamily: "'Courier New', monospace", fontSize: 11, color: "#f5a623", wordBreak: "break-all", lineHeight: 1.8 }}>
+                        {row.formula}
+                      </div>
+                    </div>
+                  ))}
+                  <div style={{ padding: "8px 12px", background: "#f5f2eb", border: "1px solid #e0ddd4", borderRadius: 2, fontSize: 10, color: "#888", fontFamily: "'Courier New', monospace", lineHeight: 1.7 }}>
+                    Ns = synchronous speed (RPM) · P = number of poles · f = frequency (Hz)<br/>
+                    T = torque (N·m) · ω = angular velocity = 2π × Nr / 60<br/>
+                    Reference: AS/NZS 1359 · IEC 60034
+                  </div>
+                </div>
+              )}
+            </div>
+            <Disclaimer />
+          </div>
+        </div>
+      </div>
+      <Footer nav={nav} />
+    </div>
+  );
+}
+
 // ─── MOTOR INRUSH & FLC CALCULATOR ──────────────────────────────────────────
 
 function calculateMotorInrush({ voltage, powerKw, powerFactor, efficiency, startingMethod, customMultiplier }) {
@@ -1327,18 +1563,18 @@ function MotorInrushCalculator({ nav }) {
             {/* Power Factor */}
             <div>
               <CalcLabel>Power Factor — <span style={{ color: "#f5a623", fontFamily: "'Courier New', monospace" }}>{powerFactor.toFixed(2)}</span></CalcLabel>
-              <input type="range" min="0.6" max="0.95" step="0.01" value={powerFactor} onChange={e => setPowerFactor(parseFloat(e.target.value))} style={{ width: "100%", accentColor: "#1a1a1a", cursor: "pointer" }} />
+              <input type="range" min="0.6" max="1.0" step="0.01" value={powerFactor} onChange={e => setPowerFactor(parseFloat(e.target.value))} style={{ width: "100%", accentColor: "#1a1a1a", cursor: "pointer" }} />
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "#aaa", fontFamily: "'Courier New', monospace", marginTop: 2 }}>
-                <span>0.60</span><span>0.80 (typical motor)</span><span>0.95</span>
+                <span>0.60</span><span>0.80 (typical motor)</span><span>1.00</span>
               </div>
             </div>
 
             {/* Efficiency */}
             <div>
               <CalcLabel>Motor Efficiency — <span style={{ color: "#f5a623", fontFamily: "'Courier New', monospace" }}>{efficiency}%</span></CalcLabel>
-              <input type="range" min="70" max="98" step="1" value={efficiency} onChange={e => setEfficiency(parseInt(e.target.value))} style={{ width: "100%", accentColor: "#1a1a1a", cursor: "pointer" }} />
+              <input type="range" min="70" max="100" step="1" value={efficiency} onChange={e => setEfficiency(parseInt(e.target.value))} style={{ width: "100%", accentColor: "#1a1a1a", cursor: "pointer" }} />
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "#aaa", fontFamily: "'Courier New', monospace", marginTop: 2 }}>
-                <span>70%</span><span>92% (IE3 typical)</span><span>98%</span>
+                <span>70%</span><span>92% (IE3 typical)</span><span>100%</span>
               </div>
             </div>
 
