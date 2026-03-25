@@ -52,7 +52,9 @@ export default function App() {
   useEffect(() => { window.scrollTo(0, 0); }, [page]);
   const nav = (p) => setPage(p);
   const acceptCookies = () => {
-    try { localStorage.setItem("cookieConsent", "true"); } catch {}
+    try { localStorage.setItem("cookieConsent", "true"); } catch {
+      // localStorage may not be available in some browsers
+    }
     setCookieAccepted(true);
   };
 
@@ -477,9 +479,14 @@ function FLCCalculator({ nav }) {
   const [result, setResult]           = useState(null);
   const [flash, setFlash]             = useState(false);
 
-  useEffect(() => { setVoltage(phases === 1 ? "230" : "415"); }, [phases]);
+  useEffect(() => {
+    // Update voltage based on phase selection
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setVoltage(phases === 1 ? "230" : "415");
+  }, [phases]);
   useEffect(() => {
     const r = calculateFLC({ phases, voltage: parseFloat(voltage), loadUnit, loadValue: parseFloat(loadValue), powerFactor, efficiency });
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setResult(r);
     if (r) { setFlash(true); setTimeout(() => setFlash(false), 300); }
   }, [phases, voltage, loadUnit, loadValue, powerFactor, efficiency]);
@@ -606,6 +613,7 @@ function ThreePhasePowerCalculator({ nav }) {
 
   useEffect(() => {
     const r = calculateThreePhase({ voltage, current, powerFactor });
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setResult(r);
     if (r) { setFlash(true); setTimeout(() => setFlash(false), 300); }
   }, [voltage, current, powerFactor]);
@@ -741,12 +749,13 @@ function OhmsLawCalculator({ nav }) {
   const filledCount = Object.values(inputs).filter(v => v !== "" && !isNaN(parseFloat(v))).length;
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (filledCount < 2)  { setResult(null); setError(""); return; }
     if (filledCount > 2)  { setResult(null); setError("Enter exactly 2 known values — clear the others."); return; }
     setError("");
     const r = solveOhmsLaw(inputs);
     r ? setResult(r) : (setResult(null), setError("Could not solve — check your values."));
-  }, [inputs]);
+  }, [inputs, filledCount]);
 
   return (
     <div style={{ minHeight: "100vh", background: "#f5f2eb", fontFamily: "'Georgia', 'Times New Roman', serif" }}>
